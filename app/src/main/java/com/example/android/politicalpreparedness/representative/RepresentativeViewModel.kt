@@ -2,7 +2,9 @@ package com.example.android.politicalpreparedness.representative
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,11 +13,16 @@ import com.example.android.politicalpreparedness.network.models.Address
 import com.example.android.politicalpreparedness.representative.model.Representative
 import kotlinx.coroutines.launch
 
-
-class RepresentativeViewModel(application: Application) : AndroidViewModel(application) {
+class RepresentativeViewModel(
+    application: Application,
+    private val savedStateHandle: SavedStateHandle
+) : AndroidViewModel(application) {
 
     // LiveData for list of representatives
-    val representatives: MutableLiveData<List<Representative>> = MutableLiveData()
+    private val _representatives =
+        savedStateHandle.getLiveData<List<Representative>>("representatives")
+    val representatives: LiveData<List<Representative>> get() = _representatives
+
     val address = MutableLiveData<Address>()
 
     // Separate LiveData for each field of the address
@@ -38,24 +45,31 @@ class RepresentativeViewModel(application: Application) : AndroidViewModel(appli
 
         viewModelScope.launch {
             try {
-                val (offices, officials) = CivicsApi.retrofitService.getRepresentativesAsync(address.toFormattedString()).await()
-                representatives.postValue(offices.flatMap { office -> office.getRepresentatives(officials) })
+                val (offices, officials) = CivicsApi.retrofitService.getRepresentativesAsync(address.toFormattedString())
+                    .await()
+                val representativeList =
+                    offices.flatMap { office -> office.getRepresentatives(officials) }
+
+                // Save representatives to SavedStateHandle
+                _representatives.value = representativeList
+                savedStateHandle.set("representatives", representativeList)
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
     }
 
-    // Factory to create the ViewModel
+    // Factory to create the ViewModel with SavedStateHandle
     class Factory(val app: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RepresentativeViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return RepresentativeViewModel(app) as T
+                return RepresentativeViewModel(app, SavedStateHandle()) as T
             }
-            throw IllegalArgumentException("Unable to construct viewModel")
+            throw IllegalArgumentException("Unable to construct ViewModel")
         }
     }
 }
+
 
 

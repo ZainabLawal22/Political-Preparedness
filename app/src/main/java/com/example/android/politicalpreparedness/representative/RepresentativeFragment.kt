@@ -18,6 +18,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.android.politicalpreparedness.R
 import com.example.android.politicalpreparedness.databinding.FragmentRepresentativeBinding
 import com.example.android.politicalpreparedness.network.models.Address
@@ -29,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-
+@Suppress("DEPRECATION")
 class RepresentativeFragment : Fragment() {
 
     companion object {
@@ -70,6 +71,7 @@ class RepresentativeFragment : Fragment() {
 
         representativeAdapter = RepresentativeListAdapter()
         binding.representativesRecyclerView.adapter = representativeAdapter
+        binding.representativesRecyclerView.layoutManager = LinearLayoutManager(context)
 
         return binding.root
     }
@@ -113,7 +115,7 @@ class RepresentativeFragment : Fragment() {
         locationClient.lastLocation
             .addOnSuccessListener { location ->
                 if (location != null) {
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         val address = geoCodeLocation(location)
                         viewModel.address.value = address
                         val states = resources.getStringArray(R.array.states)
@@ -153,3 +155,4 @@ class RepresentativeFragment : Fragment() {
         imm.hideSoftInputFromWindow(requireView().windowToken, 0)
     }
 }
+
