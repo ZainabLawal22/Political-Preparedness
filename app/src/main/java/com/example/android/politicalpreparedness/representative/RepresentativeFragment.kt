@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,16 +36,22 @@ class RepresentativeFragment : Fragment() {
 
     companion object {
         private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
+        private const val TAG = "RepresentativeFragment"
+        private const val MOTION_LAYOUT_STATE_KEY = "motion_layout_state"
     }
 
     private lateinit var binding: FragmentRepresentativeBinding
     private lateinit var representativeAdapter: RepresentativeListAdapter
+    private var motionLayoutState: Int? = null
+
 
     private val viewModel: RepresentativeViewModel by lazy {
         val application = requireNotNull(this.activity).application
-        val viewModelFactory = RepresentativeViewModel.Factory(application)
-        ViewModelProvider(this, viewModelFactory)[RepresentativeViewModel::class.java]
+        val factory = RepresentativeViewModel.Factory(application, this)
+        ViewModelProvider(this, factory)[RepresentativeViewModel::class.java]
     }
+
+
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -59,6 +66,12 @@ class RepresentativeFragment : Fragment() {
         val states = resources.getStringArray(R.array.states)
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, states)
         binding.state.adapter = adapter
+
+
+        // Restore MotionLayout state
+        motionLayoutState?.let {
+            binding.motionLayout.transitionToState(it)
+        }
 
         binding.buttonLocation.setOnClickListener {
             checkLocationPermissions()
@@ -82,9 +95,19 @@ class RepresentativeFragment : Fragment() {
         viewModel.representatives.observe(viewLifecycleOwner) { representatives ->
             representativeAdapter.submitList(representatives)
         }
+
+        savedInstanceState?.let {
+            motionLayoutState = it.getInt(MOTION_LAYOUT_STATE_KEY)
+            binding.motionLayout.transitionToState(motionLayoutState ?: 0)
+        }
     }
 
-    // Replaced deprecated onRequestPermissionsResult with ActivityResultContracts.RequestPermission
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        motionLayoutState = binding.motionLayout.currentState
+        outState.putInt(MOTION_LAYOUT_STATE_KEY, motionLayoutState ?: 0)
+    }
+
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
@@ -118,6 +141,7 @@ class RepresentativeFragment : Fragment() {
                     viewLifecycleOwner.lifecycleScope.launch {
                         val address = geoCodeLocation(location)
                         viewModel.address.value = address
+                        Log.d(TAG, "getLocation: $address")
                         val states = resources.getStringArray(R.array.states)
                         val selectedStateIndex = states.indexOf(address.state)
                         binding.state.setSelection(selectedStateIndex)

@@ -1,13 +1,14 @@
 package com.example.android.politicalpreparedness.representative
 
 import android.app.Application
+import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.savedstate.SavedStateRegistryOwner
 import com.example.android.politicalpreparedness.network.CivicsApi
 import com.example.android.politicalpreparedness.network.models.Address
 import com.example.android.politicalpreparedness.representative.model.Representative
@@ -25,12 +26,12 @@ class RepresentativeViewModel(
 
     val address = MutableLiveData<Address>()
 
-    // Separate LiveData for each field of the address
-    val addressLine1 = MutableLiveData<String>()
-    val addressLine2 = MutableLiveData<String>()
-    val city = MutableLiveData<String>()
-    val state = MutableLiveData<String>()
-    val zip = MutableLiveData<String>()
+    val addressLine1 = savedStateHandle.getLiveData<String>("addressLine1")
+    val addressLine2 = savedStateHandle.getLiveData<String>("addressLine2")
+    val city = savedStateHandle.getLiveData<String>("city")
+    val state = savedStateHandle.getLiveData<String>("state")
+    val zip = savedStateHandle.getLiveData<String>("zip")
+
 
     // Function to get representatives based on the address
     fun getRepresentatives() {
@@ -60,15 +61,24 @@ class RepresentativeViewModel(
     }
 
     // Factory to create the ViewModel with SavedStateHandle
-    class Factory(val app: Application) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+    class Factory(
+        private val app: Application,
+        private val savedStateRegistryOwner: SavedStateRegistryOwner
+    ) : AbstractSavedStateViewModelFactory(savedStateRegistryOwner, null) {
+
+        override fun <T : ViewModel> create(
+            key: String,
+            modelClass: Class<T>,
+            handle: SavedStateHandle
+        ): T {
             if (modelClass.isAssignableFrom(RepresentativeViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return RepresentativeViewModel(app, SavedStateHandle()) as T
+                return RepresentativeViewModel(app, handle) as T
             }
             throw IllegalArgumentException("Unable to construct ViewModel")
         }
     }
+
 }
 
 
