@@ -1,6 +1,7 @@
 package com.example.android.politicalpreparedness.representative
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -24,13 +25,32 @@ class RepresentativeViewModel(
         savedStateHandle.getLiveData<List<Representative>>("representatives")
     val representatives: LiveData<List<Representative>> get() = _representatives
 
-    val address = MutableLiveData<Address>()
+   // val address = MutableLiveData<Address>()
 
     val addressLine1 = savedStateHandle.getLiveData<String>("addressLine1")
     val addressLine2 = savedStateHandle.getLiveData<String>("addressLine2")
     val city = savedStateHandle.getLiveData<String>("city")
     val state = savedStateHandle.getLiveData<String>("state")
     val zip = savedStateHandle.getLiveData<String>("zip")
+
+
+    // Use LiveData to store the address
+    private val _address = MutableLiveData<Address>()
+    val address: LiveData<Address> get() = _address
+
+    // Function to update the address from the fragment when the form is filled
+    fun updateAddress(newAddress: Address) {
+        _address.value = newAddress
+
+        Log.d("RepresentativeFragment", "Current address in ViewModel: ${address.value}")
+
+    }
+
+
+    init {
+        // Initialize the address with empty fields if needed
+        _address.value = Address("", "", "", "", "")
+    }
 
 
     // Function to get representatives based on the address

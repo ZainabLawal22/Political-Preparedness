@@ -43,30 +43,45 @@ class RepresentativeFragment : Fragment() {
     private lateinit var binding: FragmentRepresentativeBinding
     private lateinit var representativeAdapter: RepresentativeListAdapter
     private var motionLayoutState: Int? = null
-
-
     private val viewModel: RepresentativeViewModel by lazy {
         val application = requireNotNull(this.activity).application
         val factory = RepresentativeViewModel.Factory(application, this)
-        ViewModelProvider(this, factory)[RepresentativeViewModel::class.java]
+        ViewModelProvider(requireActivity(), factory)[RepresentativeViewModel::class.java]
     }
-
 
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
+        Log.d(TAG, "onCreateView called")
         binding =
             DataBindingUtil.inflate(inflater, R.layout.fragment_representative, container, false)
 
         binding.lifecycleOwner = viewLifecycleOwner
         binding.viewModel = viewModel
-        binding.address = Address("", "", "", "", "")
+       // binding.address = Address("", "", "", "", "")
+        binding.address = viewModel.address.value ?: Address("", "", "", "", "")
+
 
         val states = resources.getStringArray(R.array.states)
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, states)
         binding.state.adapter = adapter
 
+        // Observe the address LiveData from the ViewModel and update the form
+        viewModel.address.observe(viewLifecycleOwner) { address ->
+            // Update form fields when the address changes
+            binding.addressLine1.setText(address.line1)
+            binding.addressLine2.setText(address.line2)
+            binding.city.setText(address.city)
+
+            // Restore the spinner selection
+            val stateIndex = states.indexOf(address.state)
+            if (stateIndex >= 0) {
+                binding.state.setSelection(stateIndex)
+            }
+            Log.d(TAG, "UI updated with address: ${address.state}")
+            binding.zip.setText(address.zip)
+        }
 
         // Restore MotionLayout state
         motionLayoutState?.let {
@@ -79,6 +94,17 @@ class RepresentativeFragment : Fragment() {
 
         binding.buttonSearch.setOnClickListener {
             hideKeyboard()
+
+            // Update ViewModel with the form data before searching
+            viewModel.updateAddress(
+                Address(
+                    line1 = binding.addressLine1.text.toString(),
+                    line2 = binding.addressLine2.text.toString(),
+                    city = binding.city.text.toString(),
+                    state = binding.state.selectedItem.toString(),
+                    zip = binding.zip.text.toString()
+                )
+            )
             viewModel.getRepresentatives()
         }
 
@@ -91,7 +117,7 @@ class RepresentativeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        Log.d(TAG, "onViewCreated called")
         viewModel.representatives.observe(viewLifecycleOwner) { representatives ->
             representativeAdapter.submitList(representatives)
         }
@@ -100,12 +126,30 @@ class RepresentativeFragment : Fragment() {
             motionLayoutState = it.getInt(MOTION_LAYOUT_STATE_KEY)
             binding.motionLayout.transitionToState(motionLayoutState ?: 0)
         }
+
+
+        savedInstanceState?.let {
+            val savedAddress: Address? = it.getParcelable("address")
+            if (savedAddress != null) {
+                viewModel.address.value?.state = savedAddress.state
+                Log.d(TAG, "Restored address: $savedAddress")
+            }
+
+
+            // Observe the address LiveData
+            viewModel.address.observe(viewLifecycleOwner) { address ->
+                binding.address = address
+                Log.d(TAG, "Address updated: $address")
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         motionLayoutState = binding.motionLayout.currentState
         outState.putInt(MOTION_LAYOUT_STATE_KEY, motionLayoutState ?: 0)
+
+        outState.putParcelable("address", viewModel.address.value)
     }
 
     private val requestPermissionLauncher =
@@ -140,7 +184,8 @@ class RepresentativeFragment : Fragment() {
                 if (location != null) {
                     viewLifecycleOwner.lifecycleScope.launch {
                         val address = geoCodeLocation(location)
-                        viewModel.address.value = address
+                        //viewModel.address.value = address
+                        viewModel.updateAddress(address)
                         Log.d(TAG, "getLocation: $address")
                         val states = resources.getStringArray(R.array.states)
                         val selectedStateIndex = states.indexOf(address.state)
