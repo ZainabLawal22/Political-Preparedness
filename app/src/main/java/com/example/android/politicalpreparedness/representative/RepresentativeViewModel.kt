@@ -2,6 +2,11 @@ package com.example.android.politicalpreparedness.representative
 
 import android.app.Application
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -13,15 +18,6 @@ import androidx.savedstate.SavedStateRegistryOwner
 import com.example.android.politicalpreparedness.network.CivicsApi
 import com.example.android.politicalpreparedness.network.models.Address
 import com.example.android.politicalpreparedness.representative.model.Representative
-import kotlinx.coroutines.launch
-
-import androidx.lifecycle.*
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -51,7 +47,8 @@ class RepresentativeViewModel(
     private val dataStore: DataStore<Preferences> = application.dataStore
 
     // LiveData for representatives
-    private val _representatives = savedStateHandle.getLiveData<List<Representative>>("representatives")
+    private val _representatives =
+        savedStateHandle.getLiveData<List<Representative>>("representatives")
     val representatives: LiveData<List<Representative>> get() = _representatives
 
     // LiveData for address fields
@@ -130,9 +127,12 @@ class RepresentativeViewModel(
 
         viewModelScope.launch {
             try {
-                val (offices, officials) = CivicsApi.retrofitService.getRepresentativesAsync(currentAddress.toFormattedString())
+                val (offices, officials) = CivicsApi.retrofitService.getRepresentativesAsync(
+                    currentAddress.toFormattedString()
+                )
                     .await()
-                val representativeList = offices.flatMap { office -> office.getRepresentatives(officials) }
+                val representativeList =
+                    offices.flatMap { office -> office.getRepresentatives(officials) }
 
                 _representatives.value = representativeList
                 savedStateHandle["representatives"] = representativeList
