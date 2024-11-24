@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,8 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.Locale
-
-
 
 
 @Suppress("DEPRECATION")
@@ -85,6 +84,8 @@ class RepresentativeFragment : Fragment() {
         }
 
         binding.buttonSearch.setOnClickListener {
+            // Hide the keyboard dynamically
+            requireActivity().window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
             hideKeyboard()
             viewModel.updateAddress(
                 Address(
@@ -108,6 +109,9 @@ class RepresentativeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.d(TAG, "onViewCreated called")
+
+        // Set the keyboard to hidden initially
+        requireActivity().window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
 
         viewModel.representatives.observe(viewLifecycleOwner) { representatives ->
             representativeAdapter.submitList(representatives)
